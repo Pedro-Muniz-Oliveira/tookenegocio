@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador e Criptografador de JWT</title>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+    <h1>Gerador e Criptografador de JWT</h1>
+
+    <form id="tokenForm">
+        <label for="prm">Parâmetros PRM (ex: teste=validacao):</label><br>
+        <input type="text" id="prm" name="prm" required><br><br>
+
+        <label for="encryptionKey">Chave de Criptografia Base64:</label><br>
+        <input type="text" id="encryptionKey" name="encryptionKey" required><br><br>
+
+        <button type="button" onclick="generateAndEncryptToken()">Gerar e Criptografar Token</button>
+    </form>
+
+    <h2>Resultados:</h2>
+    <p><strong>Token JWT Gerado:</strong></p>
+    <textarea id="generatedToken" rows="4" cols="50" readonly></textarea><br><br>
+    <p><strong>Token JWT Criptografado:</strong></p>
+    <textarea id="encryptedToken" rows="4" cols="50" readonly></textarea>
+
+    <script>
+        function base64UrlEncode(value) {
+            return value.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function generateBusinessToken(prm, expirationSeconds, secretBase64) {
+            const now = Math.floor(Date.now() / 1000);
+
+            const payload = {
+                iss: 'pcbs-bff-chatbot',
+                aud: ['datapower', 'gatewayscript'],
+                iat: now + 0.249,
+                exp: now + expirationSeconds + 0.249,
+                prm: prm
+            };
+
+            const header = { alg: 'HS256', typ: 'JWT' };
+            const encodedHeader = btoa(JSON.stringify(header));
+            const encodedPayload = btoa(JSON.stringify(payload));
+
+            const signatureInput = `${encodedHeader}.${encodedPayload}`;
+
+            const key = CryptoJS.enc.Base64.parse(secretBase64);
+            const hmac = CryptoJS.HmacSHA256(signatureInput, key);
+            const signature = base64UrlEncode(CryptoJS.enc.Base64.stringify(hmac));
+
+            return `${encodedHeader}.${encodedPayload}.${signature}`;
+        }
+
+        function encryptJWT(jwt, encryptionKey) {
+            const key = CryptoJS.enc.Base64.parse(encryptionKey);
+            const iv = CryptoJS.enc.Base64.parse('AAAAAAAAAAAAAAAAAAAAAA=='); // IV de 16 bytes zerados
+            const encrypted = CryptoJS.AES.encrypt(jwt, key, { iv: iv });
+            return encrypted.toString();
+        }
+
+        function generateAndEncryptToken() {
+            const prm = document.getElementById('prm').value;
+            const encryptionKey = document.getElementById('encryptionKey').value;
+            const expirationSeconds = 1800; // 30 minutos
+
+            if (!prm || !encryptionKey) {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            try {
+                const tokenJWT = generateBusinessToken(prm, expirationSeconds, encryptionKey);
+                document.getElementById('generatedToken').value = tokenJWT;
+
+                const encryptedJWT = encryptJWT(tokenJWT, encryptionKey);
+                document.getElementById('encryptedToken').value = encryptedJWT;
+            } catch (error) {
+                console.error('Erro:', error.message);
+                alert("Erro ao gerar ou criptografar o token. Verifique os dados informados.");
+            }
+        }
+    </script>
+</body>
+</html>
